@@ -21,6 +21,7 @@ The wizard will ask for:
 - host (most likely `<your_provider>.smarthub.coop`)
 - your account id (taken from the billing)
 - your **location id** (instruction below)
+- poll interval (in minutes, 12 hours by default)
 
 
 **Getting the location id**
