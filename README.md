@@ -30,6 +30,12 @@ The wizard will ask for:
 - Open the call, and copy the `serviceLocationNumber` field from the `Payload` tab.
 
 
+# Limitations
+- The API provides data with a delay, the integration just reports the current total for the unbilled period
+- The integration currently only sets the usage (doesn't set the cost sensor)
+- It hardcodes to only lookup `ENERGY` data (no gas information)
+
+
 # Credits
 Thanks [@tedpearson](https://github.com/tedpearson) for his [go implementation](https://github.com/tedpearson/electric-usage-downloader) which inspired this integration.
 
