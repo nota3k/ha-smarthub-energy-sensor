@@ -2,7 +2,7 @@
   "domain": "smarthub",
   "name": "SmartHub Coop Energy",
   "version": "1.0.0",
-  "documentation": "https://example.com/smarthub-integration-docs",
+  "documentation": "https://github.com/gagata/ha-smarthub-energy-sensor",
   "requirements": ["requests"],
   "dependencies": [],
   "codeowners": ["@gagata"],
