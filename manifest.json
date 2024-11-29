@@ -1,0 +1,11 @@
+{
+  "domain": "smarthub",
+  "name": "SmartHub Coop Energy",
+  "version": "1.0.0",
+  "documentation": "https://example.com/smarthub-integration-docs",
+  "requirements": ["requests"],
+  "dependencies": [],
+  "codeowners": ["@gagata"],
+  "config_flow": true
+}
+
