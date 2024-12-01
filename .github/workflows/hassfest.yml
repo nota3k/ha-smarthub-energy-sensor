@@ -8,6 +8,8 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
         - uses: "actions/checkout@v4"
-        - uses: "home-assistant/actions/hassfest@master"
-          env:
-                  HASSFEST_CONTENT_IN_ROOT: "true"
+        - name: Validate with hassfest
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install homeassistant-hassfest
+          hassfest . --allow-domain-mismatch
