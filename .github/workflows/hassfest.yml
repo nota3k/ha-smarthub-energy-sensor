@@ -9,7 +9,7 @@ jobs:
     steps:
         - uses: "actions/checkout@v4"
         - name: Validate with hassfest
-        run: |
-          python3 -m pip install --upgrade pip
-          pip install homeassistant-hassfest
-          hassfest . --allow-domain-mismatch
+          run: |
+                  python3 -m pip install --upgrade pip
+                  pip install homeassistant-hassfest
+                  hassfest . --allow-domain-mismatch
