@@ -1,7 +1,6 @@
 name: Validate with hassfest
 
 on:
-  pull_request:
   push:
 
 jobs:
@@ -11,4 +10,4 @@ jobs:
         - uses: "actions/checkout@v4"
         - uses: "home-assistant/actions/hassfest@master"
           env:
-          HASSFEST_CONTENT_IN_ROOT: "true"
+                  HASSFEST_CONTENT_IN_ROOT: "true"
