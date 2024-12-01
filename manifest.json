@@ -1,5 +1,5 @@
 {
-  "domain": "smarthub",
+  "domain": "ha-smarthub-energy-sensor",
   "name": "SmartHub Coop Energy",
   "version": "1.0.0",
   "documentation": "https://github.com/gagata/ha-smarthub-energy-sensor",
