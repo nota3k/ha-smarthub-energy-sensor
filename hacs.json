@@ -2,5 +2,6 @@
   "name": "SmartHub Coop Integration",
   "content_in_root": true,
   "render_readme": true,
-  "country": ["US"]
+  "country": ["US"],
+  "hide_default_branch": false
 }
