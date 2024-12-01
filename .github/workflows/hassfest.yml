@@ -8,6 +8,7 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
         - uses: "actions/checkout@v4"
-          path: "smarthub"
+          with:
+                  path: "smarthub"
         - name: Validate with hassfest
           uses: "home-assistant/actions/hassfest@master"
