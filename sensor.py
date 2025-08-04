@@ -44,6 +44,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     sensors = [
         SmartHubEnergySensor(coordinator, base_unique_id),
         SmartHubEnergyCostSensor(coordinator, base_unique_id),
+        SmartHubEnergyDemandSensor(coordinator, base_unique_id),
     ]
     async_add_entities(sensors)
 
@@ -195,6 +196,86 @@ class SmartHubEnergyCostSensor(CoordinatorEntity, SensorEntity):
     @property
     def state_class(self) -> str:
         return "total_increasing"
+
+    @property
+    def device_info(self) -> Optional[Dict[str, Any]]:
+        """Return information about the device."""
+        if not self._base_unique_id:
+            return None
+
+        try:
+            parts = self._base_unique_id.split('_')
+            host_name = parts[1] if len(parts) >= 2 else "Unknown Host"
+            account_id_suffix = parts[2] if len(parts) >= 3 else "Unknown Account"
+            configuration_url = f"https://{host_name}/" if host_name != "Unknown Host" else None
+        except (IndexError, Exception):
+            host_name = "Unknown Host"
+            account_id_suffix = "Unknown Account"
+            configuration_url = None
+
+        return {
+            "identifiers": {(DOMAIN, self._base_unique_id)},
+            "name": f"{host_name} ({account_id_suffix})",
+            "manufacturer": "gagata",
+            "model": "Energy Monitor",
+            "configuration_url": configuration_url,
+        }
+
+
+class SmartHubEnergyDemandSensor(CoordinatorEntity, SensorEntity):
+    """Representation of the SmartHub Energy demand sensor."""
+
+    def __init__(self, coordinator, base_unique_id: str):
+        super().__init__(coordinator)
+        self._base_unique_id = base_unique_id
+
+    @property
+    def name(self) -> str:
+        return "SmartHub Energy Demand"
+
+    @property
+    def unique_id(self) -> str:
+        return f"{self._base_unique_id}_energy_demand"
+
+    @property
+    def state(self) -> Optional[float]:
+        if self.coordinator.data is not None:
+            demand = self.coordinator.data.get("current_energy_demand")
+            if demand is not None:
+                return demand
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return True if demand data is available."""
+        return (self.coordinator.data is not None and 
+                self.coordinator.data.get("current_energy_demand") is not None)
+
+    @property
+    def unit_of_measurement(self) -> str:
+        return "kW"
+
+    @property
+    def device_class(self) -> str:
+        return "power"
+
+    @property
+    def state_class(self) -> str:
+        return "measurement"
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return additional attributes."""
+        attrs = {
+            "icon": "mdi:flash",
+        }
+        # Add peak demand information if available
+        if self.coordinator.data:
+            peak_demand = self.coordinator.data.get("peak_energy_demand")
+            if peak_demand is not None:
+                attrs["peak_demand"] = peak_demand
+                attrs["peak_demand_unit"] = "kW"
+        return attrs
 
     @property
     def device_info(self) -> Optional[Dict[str, Any]]:

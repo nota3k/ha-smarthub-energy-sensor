@@ -7,7 +7,7 @@ _LOGGER = logging.getLogger(__name__)
 
 def parse_last_usage(data):
     """
-    Parse the JSON data and extract the last data point for usage.
+    Parse the JSON data and extract the last data point for usage, cost, and demand.
 
     Args:
         data (dict): The JSON data as a Python dictionary.
@@ -45,6 +45,21 @@ def parse_last_usage(data):
                         last_cost_point = cost_data[-1]
                         cost_value = last_cost_point.get("y")
                         result["current_energy_cost"] = cost_value
+                        
+            # Find the entry with type "DEMAND" for demand data
+            elif entry_type == "DEMAND":
+                series = entry.get("series", [])
+                for serie in series:
+                    # Extract the last data point in the "data" array
+                    demand_data = serie.get("data", [])
+                    if demand_data:
+                        last_demand_point = demand_data[-1]
+                        demand_value = last_demand_point.get("y")
+                        result["current_energy_demand"] = demand_value
+                        
+                        # Calculate peak demand from all data points
+                        max_demand = max(point.get("y", 0) for point in demand_data)
+                        result["peak_energy_demand"] = max_demand
 
         # Return the result if we found any data
         return result if result else None
@@ -112,7 +127,7 @@ class SmartHubAPI:
             "timeFrame": "MONTHLY",  # Revert to MONTHLY which was working
             "userId": self.email,
             "screen": "USAGE_EXPLORER",
-            "includeDemand": False,
+            "includeDemand": True,  # Enable demand data
             "serviceLocationNumber": self.location_id,
             "accountNumber": self.account_id,
             "industries": ["ELECTRIC"],
