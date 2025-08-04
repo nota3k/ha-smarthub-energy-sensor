@@ -1,7 +1,8 @@
 import logging
 from datetime import timedelta
+from typing import Any, Dict, Optional
 
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 
 from .const import DOMAIN
@@ -10,7 +11,6 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the sensor platform."""
-    _LOGGER.debug("async_setup_entry called for SmartHub Energy Sensor")
 
     data = hass.data[DOMAIN][config_entry.entry_id]
     api = data["api"]
@@ -28,8 +28,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         )
         base_unique_id = config_entry.entry_id # Fallback to a guaranteed unique string
 
-    _LOGGER.debug(f"Base Unique ID for sensor: {base_unique_id}")
-
     # Create a coordinator to manage polling
     coordinator = DataUpdateCoordinator(
         hass,
@@ -43,19 +41,20 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     await coordinator.async_refresh()
 
     # Create and add the sensor
-    sensors = [SmartHubEnergySensor(coordinator, base_unique_id)]
+    sensors = [
+        SmartHubEnergySensor(coordinator, base_unique_id),
+        SmartHubEnergyCostSensor(coordinator, base_unique_id),
+    ]
     async_add_entities(sensors)
-    _LOGGER.debug("Sensor entities added.")
 
 
-class SmartHubEnergySensor(CoordinatorEntity, Entity):
+class SmartHubEnergySensor(CoordinatorEntity, SensorEntity):
     """Representation of the SmartHub Energy sensor."""
 
     def __init__(self, coordinator, base_unique_id):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._base_unique_id = base_unique_id
-        _LOGGER.debug(f"SmartHubEnergySensor initialized with base_unique_id: {self._base_unique_id}")
 
     @property
     def name(self):
@@ -82,24 +81,19 @@ class SmartHubEnergySensor(CoordinatorEntity, Entity):
         return f"{self._base_unique_id}_energy_usage"
 
     @property
-    def state(self):
+    def state(self) -> Optional[float]:
         """Return the state of the sensor."""
         # Ensure that self.coordinator.data is not None before accessing it
         if self.coordinator.data is not None:
             return self.coordinator.data.get("current_energy_usage")
 
-        _LOGGER.debug("Coordinator data is None or 'current_energy_usage' not found. Returning None for state.")
         return None # Return None if data is not available
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> Dict[str, Any]:
         """Return additional attributes."""
-        # 'unit_of_measurement' is now a direct property,
-        # but you can add other relevant attributes from your API here if desired.
         attrs = {
             "icon": "mdi:power-plug",
-            "device_class":"energy",
-            "state_class":"total_increasing",
         }
         # Example: if your API provides other useful data, add it here
         # if self.coordinator.data:
@@ -108,18 +102,26 @@ class SmartHubEnergySensor(CoordinatorEntity, Entity):
         return attrs
 
     @property
-    def unit_of_measurement(self):
+    def device_class(self) -> str:
+        """Return the device class."""
+        return "energy"
+
+    @property
+    def state_class(self) -> str:
+        """Return the state class."""
+        return "total_increasing"
+
+    @property
+    def unit_of_measurement(self) -> str:
         """Return the unit of measurement."""
         return "kWh"
 
     @property
-    def device_info(self):
+    def device_info(self) -> Optional[Dict[str, Any]]:
         """Return information about the device."""
         if not self._base_unique_id:
             _LOGGER.warning("base_unique_id is missing, cannot create device_info for sensor.")
             return None # Cannot create a device without a base identifier
-
-        _LOGGER.debug(f"Attempting to parse device_info from base_unique_id: '{self._base_unique_id}'")
 
         host_name = "Unknown Host" # Default if host can't be extracted
         account_id_suffix = "Unknown Account" # Default if account ID can't be extracted
@@ -127,7 +129,6 @@ class SmartHubEnergySensor(CoordinatorEntity, Entity):
 
         try:
             parts = self._base_unique_id.split('_')
-            _LOGGER.debug(f"Parsed unique_id parts: {parts} (length: {len(parts)})")
 
             # Assuming the format is email_host_account_id (3 parts)
             if len(parts) >= 2:
@@ -138,18 +139,82 @@ class SmartHubEnergySensor(CoordinatorEntity, Entity):
                 account_id_suffix = parts[2] # This is the account_id part
 
         except IndexError:
-            _LOGGER.debug(f"Base unique ID '{self._base_unique_id}' does not have enough parts for detailed device_info parsing (IndexError).")
+            pass  # Use defaults
         except Exception as e:
             _LOGGER.warning(f"Error parsing base_unique_id '{self._base_unique_id}' for device_info: {e}")
             # Fallback for host_name and account_id_suffix if parsing fails
             host_name = "Parsing Error"
             account_id_suffix = "Parsing Error"
 
-        _LOGGER.debug(f"Device Info - Host: {host_name}, Account Suffix: {account_id_suffix}, Config URL: {configuration_url}")
-
         return {
             "identifiers": {(DOMAIN, self._base_unique_id)},
             "name": f"{host_name} ({account_id_suffix})", # Naming the device with the account ID for clarity
+            "manufacturer": "gagata",
+            "model": "Energy Monitor",
+            "configuration_url": configuration_url,
+        }
+
+
+class SmartHubEnergyCostSensor(CoordinatorEntity, SensorEntity):
+    """Representation of the SmartHub Energy cost sensor."""
+
+    def __init__(self, coordinator, base_unique_id: str):
+        super().__init__(coordinator)
+        self._base_unique_id = base_unique_id
+
+    @property
+    def name(self) -> str:
+        return "SmartHub Energy Cost"
+
+    @property
+    def unique_id(self) -> str:
+        return f"{self._base_unique_id}_energy_cost"
+
+    @property
+    def state(self) -> Optional[float]:
+        if self.coordinator.data is not None:
+            cost = self.coordinator.data.get("current_energy_cost")
+            if cost is not None:
+                return cost
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return True if cost data is available."""
+        return (self.coordinator.data is not None and 
+                self.coordinator.data.get("current_energy_cost") is not None)
+
+    @property
+    def unit_of_measurement(self) -> str:
+        return "USD"  # Change to your currency if needed
+
+    @property
+    def device_class(self) -> str:
+        return "monetary"
+
+    @property
+    def state_class(self) -> str:
+        return "total_increasing"
+
+    @property
+    def device_info(self) -> Optional[Dict[str, Any]]:
+        """Return information about the device."""
+        if not self._base_unique_id:
+            return None
+
+        try:
+            parts = self._base_unique_id.split('_')
+            host_name = parts[1] if len(parts) >= 2 else "Unknown Host"
+            account_id_suffix = parts[2] if len(parts) >= 3 else "Unknown Account"
+            configuration_url = f"https://{host_name}/" if host_name != "Unknown Host" else None
+        except (IndexError, Exception):
+            host_name = "Unknown Host"
+            account_id_suffix = "Unknown Account"
+            configuration_url = None
+
+        return {
+            "identifiers": {(DOMAIN, self._base_unique_id)},
+            "name": f"{host_name} ({account_id_suffix})",
             "manufacturer": "gagata",
             "model": "Energy Monitor",
             "configuration_url": configuration_url,

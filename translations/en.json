@@ -1,0 +1,43 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "SmartHub Energy Setup",
+                "description": "Configure your SmartHub Energy integration",
+                "data": {
+                    "email": "Email Address",
+                    "password": "Password",
+                    "account_id": "Account Number",
+                    "location_id": "Service Location Number",
+                    "host": "SmartHub Host",
+                    "poll_interval": "Poll Interval (minutes)"
+                },
+                "data_description": {
+                    "email": "Your SmartHub login email address",
+                    "password": "Your SmartHub login password",
+                    "account_id": "Your account number (found on your bill or SmartHub website)",
+                    "location_id": "Internal SmartHub number (find via browser dev tools in Usage Explorer)",
+                    "host": "Your utility's SmartHub hostname (e.g., utility.smarthub.coop)",
+                    "poll_interval": "How often to check for new data (in minutes)"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Failed to connect to SmartHub. Please check your credentials and host."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "SmartHub Energy Options",
+                "description": "Configure SmartHub Energy options",
+                "data": {
+                    "poll_interval": "Poll Interval (minutes)"
+                },
+                "data_description": {
+                    "poll_interval": "How often to check for new data (in minutes)"
+                }
+            }
+        }
+    }
+}

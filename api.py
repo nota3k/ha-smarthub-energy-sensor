@@ -15,26 +15,42 @@ def parse_last_usage(data):
     Returns:
         dict: A dictionary containing the timestamp and value of the last usage point.
     """
+    result = {}
+    
     try:
         # Locate the "ELECTRIC" data
         electric_data = data.get("data", {}).get("ELECTRIC", [])
+        
         for entry in electric_data:
+            entry_type = entry.get("type")
+            
             # Find the entry with type "USAGE"
-            if entry.get("type") == "USAGE":
+            if entry_type == "USAGE":
                 series = entry.get("series", [])
                 for serie in series:
                     # Extract the last data point in the "data" array
                     usage_data = serie.get("data", [])
                     if usage_data:
                         last_data_point = usage_data[-1]
-                        #timestamp = last_data_point.get("x")
                         value = last_data_point.get("y")
-                        #return {"timestamp": timestamp, "value": value}
-                        return {"current_energy_usage": value}
+                        result["current_energy_usage"] = value
+                        
+            # Find the entry with type "COST" for cost data
+            elif entry_type == "COST":
+                series = entry.get("series", [])
+                for serie in series:
+                    # Extract the last data point in the "data" array
+                    cost_data = serie.get("data", [])
+                    if cost_data:
+                        last_cost_point = cost_data[-1]
+                        cost_value = last_cost_point.get("y")
+                        result["current_energy_cost"] = cost_value
 
-        # If no usage data is found, return None
-        return None
+        # Return the result if we found any data
+        return result if result else None
+        
     except Exception as e:
+        _LOGGER.error("Error parsing usage data: %s", e)
         raise RuntimeError(f"Error parsing usage data: {e}")
 
 class SmartHubAPI:
@@ -57,15 +73,9 @@ class SmartHubAPI:
         }
         payload = f"password={self.password}&userId={self.email}"
 
-        _LOGGER.debug("Sending asynchronous authentication request to: %s", auth_url)
-        _LOGGER.debug("Headers: %s", headers)
-        _LOGGER.debug("Payload: %s", payload)
-
         async with aiohttp.ClientSession() as session:
             async with session.post(auth_url, headers=headers, data=payload) as response:
                 response_text = await response.text()
-                _LOGGER.debug("Response status: %s", response.status)
-                _LOGGER.debug("Response body: %s", response_text)
 
                 if response.status != 200:
                     raise RuntimeError(
@@ -76,7 +86,6 @@ class SmartHubAPI:
                 self.token = response_json.get("authorizationToken")
                 if not self.token:
                     raise RuntimeError("Failed to retrieve authorization token.")
-                _LOGGER.debug("Successfully retrieved token: %s", self.token)
 
     async def get_energy_data(self):
         """Retrieve energy usage data asynchronously with retry logic."""
@@ -91,6 +100,7 @@ class SmartHubAPI:
         }
 
         # Calculate startDateTime and endDateTime
+        # Revert to original working timeframe that was proven to work
         now = datetime.now()
         end_time = now.replace(hour=17, minute=0, second=0, microsecond=0)
         start_time = end_time - timedelta(days=30) + timedelta(hours=1)
@@ -99,7 +109,7 @@ class SmartHubAPI:
         end_timestamp = int(end_time.timestamp()) * 1000
 
         data = {
-            "timeFrame": "MONTHLY",
+            "timeFrame": "MONTHLY",  # Revert to MONTHLY which was working
             "userId": self.email,
             "screen": "USAGE_EXPLORER",
             "includeDemand": False,
@@ -110,9 +120,6 @@ class SmartHubAPI:
             "endDateTime": str(end_timestamp),
         }
 
-        _LOGGER.debug("Sending asynchronous poll request to: %s", poll_url)
-        _LOGGER.debug("Payload: %s", data)
-
         max_retries = 5  # Maximum number of retries
         retry_delay = 2  # Delay between retries in seconds
 
@@ -120,8 +127,6 @@ class SmartHubAPI:
             async with aiohttp.ClientSession() as session:
                 async with session.post(poll_url, headers=headers, json=data) as response:
                     response_text = await response.text()
-                    _LOGGER.debug("Attempt %d: Response status: %s", attempt, response.status)
-                    _LOGGER.debug("Attempt %d: Response body: %s", attempt, response_text)
 
                     if response.status != 200:
                         raise RuntimeError(
@@ -132,7 +137,6 @@ class SmartHubAPI:
 
                     # Check if the status is still pending
                     if response_json.get("status") == "PENDING":
-                        _LOGGER.debug("Attempt %d: Status is PENDING. Retrying...", attempt)
                         if attempt < max_retries:
                             await asyncio.sleep(retry_delay)
                             continue
@@ -141,7 +145,6 @@ class SmartHubAPI:
                             raise RuntimeError("Failed to retrieve complete data. Status: PENDING")
                     else:
                         # Valid response received
-                        _LOGGER.debug("Attempt %d: Successfully retrieved data.", attempt)
                         return parse_last_usage(response_json)
 
         raise RuntimeError("Unexpected error: Retry loop exited without success.")

@@ -35,20 +35,12 @@ class SmartHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     host=user_input["host"],
                 )
                 
-                # Note: If SmartHubAPI.get_token is not truly async (e.g., uses blocking requests),
-                # hass.async_add_executor_job is correct. If it's pure aiohttp/httpx async,
-                # you can just await it directly: `await api.get_token()`.
-                # Given api.py uses aiohttp, you can likely do:
                 await api.get_token()
 
-                # Debug log for successful connection
-                _LOGGER.debug("Successfully validated credentials in config_flow and set unique_id: %s", unique_id)
-
                 # Create an entry with the user-provided data
-                # The unique_id is now automatically associated with this entry
                 return self.async_create_entry(title="SmartHub", data=user_input)
 
-            except Exception as e: # Catch specific exceptions for better error handling
+            except Exception as e:
                 _LOGGER.error("Error validating credentials in config_flow: %s", e)
                 errors["base"] = "cannot_connect"
 
@@ -60,7 +52,39 @@ class SmartHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required("account_id"): str,
                 vol.Required("location_id"): str,
                 vol.Required("host"): str,
-                vol.Optional(CONF_POLL_INTERVAL, default=DEFAULT_POLL_INTERVAL): int,  # Poll interval in minutes
+                vol.Optional(
+                    CONF_POLL_INTERVAL, 
+                    default=DEFAULT_POLL_INTERVAL,
+                    description={"suffix": "minutes"}
+                ): int,
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+
+    @staticmethod
+    def async_get_options_flow(config_entry):
+        return SmartHubOptionsFlow(config_entry)
+
+
+class SmartHubOptionsFlow(config_entries.OptionsFlow):
+    """Handle SmartHub options flow."""
+
+    def __init__(self, config_entry):
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        """Manage the options."""
+        errors = {}
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        options_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_POLL_INTERVAL,
+                    default=self.config_entry.options.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL),
+                    description={"suffix": "minutes"}
+                ): int,
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=options_schema, errors=errors)
