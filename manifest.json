@@ -8,6 +8,7 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/gagata/ha-smarthub-energy-sensor/issues",
   "requirements": ["aiohttp"],
-  "version": "v1.0.0"
+  "version": "v1.0.0",
+  "integration_type": "device"
 }
 

@@ -1,12 +1,22 @@
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from .api import SmartHubAPI
-from .const import DOMAIN, CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL
+"""SmartHub Energy Sensor integration for Home Assistant."""
+
+from __future__ import annotations
 
 import logging
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
+
+from .api import SmartHubAPI
+from .const import DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+PLATFORMS: list[Platform] = [Platform.SENSOR]
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the integration from a config entry."""
     config = entry.data
 
@@ -21,31 +31,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Store the API instance in hass.data
     hass.data.setdefault(DOMAIN, {})
-    
-    # Get poll interval from options if available, otherwise from config data
-    poll_interval = entry.options.get(CONF_POLL_INTERVAL) or config.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
-    
-    hass.data[DOMAIN][entry.entry_id] = {
-        "api": api,
-        "poll_interval": poll_interval,
-    }
+    hass.data[DOMAIN][entry.entry_id] = {"api": api}
 
     # Forward setup to the sensor platform
-    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
-    
-    # Set up options update listener
-    entry.async_on_unload(entry.add_update_listener(async_update_options))
-    
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
     return True
 
-async def async_update_options(hass: HomeAssistant, entry: ConfigEntry):
-    """Update options."""
-    await hass.config_entries.async_reload(entry.entry_id)
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    if await hass.config_entries.async_unload_platforms(entry, ["sensor"]):
+    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id, None)
-        return True
-    return False
-
+    return unload_ok
